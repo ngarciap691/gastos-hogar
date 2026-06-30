@@ -1,0 +1,22 @@
+{
+  "name": "Gastos Hogar García Martínez",
+  "short_name": "Gastos Hogar",
+  "description": "Control de gastos del hogar",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/1a1a2e/ffffff?text=GH",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/1a1a2e/ffffff?text=GH",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
