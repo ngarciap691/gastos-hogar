@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gastos Hogar García Martínez</title>
+  <meta name="theme-color" content="#1a1a2e" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e;
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header span { font-size: 13px; opacity: 0.7; }
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      position: sticky;
+      top: 56px;
+      z-index: 99;
+    }
+    .tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: #888;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      color: #1a1a2e;
+      border-bottom-color: #e63946;
+    }
+    .screen { display: none; padding: 16px; }
+    .screen.active { display: block; }
+
+    /* Dashboard */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card.full { grid-column: 1 / -1; }
+    .card-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .card-value { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+    .card-value.green { color: #2d9e5f; }
+    .card-value.red { color: #e63946; }
+    .card-value.blue { color: #2563eb; }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin: 16px 0 8px;
+    }
+    .category-row {
+      background: white;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .category-name { font-size: 13px; font-weight: 500; }
+    .category-amounts { font-size: 12px; color: #888; }
+    .progress-bar {
+      height: 6px;
+      background: #f0f0f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .progress-fill.ok { background: #2d9e5f; }
+    .progress-fill.warn { background: #f59e0b; }
+    .progress-fill.over { background: #e63946; }
+
+    /* Registro */
+    .register-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+    }
+    .register-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
+    .form-group select,
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fafafa;
+      color: #1a1a2e;
+      appearance: none;
+    }
+    .form-group select:focus,
+    .form-group input:focus {
+      outline: none;
+      border-color: #1a1a2e;
+      background: white;
+    }
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: #1a1a2e;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary:active { opacity: 0.85; }
+
+    .movimiento-item {
+      background: white;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mov-left { flex: 1; }
+    .mov-sub { font-size: 13px; font-weight: 500; }
+    .mov-cat { font-size: 11px; color: #888; margin-top: 2px; }
+    .mov-fecha { font-size: 11px; color: #bbb; margin-top: 2px; }
+    .mov-monto { font-size: 15px; font-weight: 700; color: #e63946; }
+    .mov-monto.ingreso { color: #2d9e5f; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a2e;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 13px;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    .mes-selector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .mes-selector button {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .mes-selector span { font-size: 15px; font-weight: 600; }
+
+    .pendiente-badge {
+      display: inline-block;
+      background: #fff3cd;
+      color: #856404;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-top: 4px;
+    }
+    .pagado-badge {
+      display: inline-block;
+      background: #d1fae5;
+      color: #065f46;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏠 Hogar García Martínez</h1>
+  <span id="mes-header"></span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showScreen('dashboard')">📊 Dashboard</div>
+  <div class="tab" onclick="showScreen('registrar')">➕ Registrar</div>
+  <div class="tab" onclick="showScreen('movimientos')">📋 Movimientos</div>
+</div>
+
+<div id="screen-dashboard" class="screen active">
+  <div class="mes-selector">
+    <button onclick="cambiarMes(-1)">◀</button>
+    <span id="mes-label">Junio 2025</span>
+    <button onclick="cambiarMes(1)">▶</button>
+  </div>
+  <div class="summary-grid">
+    <div class="card">
+      <div class="card-label">Ingresos del mes</div>
+      <div class="card-value blue" id="total-ingresos">$0</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Gastos reales</div>
+      <div class="card-value red" id="total-gastos">$0</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Presupuesto total</div>
+      <div class="card-value" id="total-presupuesto">$0</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Disponible</div>
+      <div class="card-value green" id="total-disponible">$0</div>
+    </div>
+  </div>
+
+  <div class="section-title">Gastos por categoría</div>
+  <div id="categorias-dashboard"></div>
+</div>
+
+<div id="screen-registrar" class="screen">
+  <div class="register-card">
+    <h2>Registrar movimiento</h2>
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="tipo-mov" onchange="actualizarCategorias()">
+        <option value="gasto">Gasto</option>
+        <option value="ingreso">Ingreso</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Categoría</label>
+      <select id="categoria-mov" onchange="actualizarSubcategorias()"></select>
+    </div>
+    <div class="form-group">
+      <label>Subcategoría</label>
+      <select id="subcategoria-mov"></select>
+    </div>
+    <div class="form-group">
+      <label>Monto (pesos colombianos)</label>
+      <input type="number" id="monto-mov" placeholder="Ej: 150000" />
+    </div>
+    <div class="form-group">
+      <label>Fecha</label>
+      <input type="date" id="fecha-mov" />
+    </div>
+    <div class="form-group">
+      <label>¿Quién registra?</label>
+      <select id="quien-mov">
+        <option value="Nicolas">Nicolás</option>
+        <option value="Daniela">Daniela</option>
+      </select>
+    </div>
+    <div class="form-group" id="grupo-estado">
+      <label>Estado del pago</label>
+      <select id="estado-mov">
+        <option value="pagado">Pagado</option>
+        <option value="pendiente">Pendiente</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Nota (opcional)</label>
+      <input type="text" id="nota-mov" placeholder="Ej: Mercado del sábado" />
+    </div>
+    <button class="btn-primary" onclick="registrarMovimiento()">Guardar movimiento</button>
+  </div>
+</div>
+
+<div id="screen-movimientos" class="screen">
+  <div class="mes-selector">
+    <button onclick="cambiarMes(-1)">◀</button>
+    <span id="mes-label-2">Junio 2025</span>
+    <button onclick="cambiarMes(1)">▶</button>
+  </div>
+  <div class="section-title">Movimientos del mes</div>
+  <div id="lista-movimientos"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ══════════════════════════════════════════
+  // TU CONFIGURACIÓN DE FIREBASE
+  // ══════════════════════════════════════════
+  const firebaseConfig = {
+    apiKey: "AIzaSyDVkMiEadurNBiptLkiD9qAi_4EQlt8fxw",
+    authDomain: "flujo-de-caja-hogar.firebaseapp.com",
+    projectId: "flujo-de-caja-hogar",
+    storageBucket: "flujo-de-caja-hogar.firebasestorage.app",
+    messagingSenderId: "1082847836636",
+    appId: "1:1082847836636:web:5c6566abe8c372fefb7719"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ══════════════════════════════════════════
+  // CATEGORÍAS Y SUBCATEGORÍAS
+  // ══════════════════════════════════════════
+  window.CATEGORIAS = {
+    gasto: {
+      "Gastos Hogar": [
+        "Arriendo","Administración","Internet - ETB","Luz - Enel","Agua",
+        "Gas - Vanti","Celular Nicolás","Celular Daniela","Mercado Carnes",
+        "Mercado Verduras","Mercado Otros","Pago Directo Empleada",
+        "Salud-Pensión-ARL-CC Empleada","Cesantías Empleada",
+        "Intereses Cesantías Empleada","Prima de Servicios Empleada",
+        "Symplifica","Colegio Nola","Comida Nola"
+      ],
+      "Gastos Personales": [
+        "Gastos Nicolás","Gastos Daniela","Salidas a Comer"
+      ],
+      "Otros Gastos": [
+        "Gimnasio Daniela","Arriendo Julián","Otros"
+      ]
+    },
+    ingreso: {
+      "Ingresos Fijos": [
+        "Sueldo Básico Nicolás","Sueldo Básico Daniela",
+        "Junta Directiva Tesicol","Junta Directiva Metrex",
+        "Auxilio Parqueadero","Sodexo"
+      ],
+      "Ingresos Variables": [
+        "Junta Directiva Santamar","Prima Nicolás","Prima Daniela",
+        "Bono Daniela","Comité Auditoría Metrex",
+        "Bonificación Vacaciones","Ajuste Salarial Inflación",
+        "Intereses y Cesantías"
+      ]
+    }
+  };
+
+  // ══════════════════════════════════════════
+  // PRESUPUESTO BASE (lo editamos después)
+  // ══════════════════════════════════════════
+  window.PRESUPUESTO = {
+    "Arriendo": 0,
+    "Administración": 0,
+    "Internet - ETB": 0,
+    "Luz - Enel": 0,
+    "Agua": 0,
+    "Gas - Vanti": 0,
+    "Celular Nicolás": 0,
+    "Celular Daniela": 0,
+    "Mercado Carnes": 0,
+    "Mercado Verduras": 0,
+    "Mercado Otros": 0,
+    "Pago Directo Empleada": 0,
+    "Salud-Pensión-ARL-CC Empleada": 0,
+    "Cesantías Empleada": 0,
+    "Intereses Cesantías Empleada": 0,
+    "Prima de Servicios Empleada": 0,
+    "Symplifica": 0,
+    "Colegio Nola": 0,
+    "Comida Nola": 0,
+    "Gastos Nicolás": 0,
+    "Gastos Daniela": 0,
+    "Salidas a Comer": 0,
+    "Gimnasio Daniela": 0,
+    "Arriendo Julián": 0,
+    "Otros": 0
+  };
+
+  // ══════════════════════════════════════════
+  // ESTADO GLOBAL
+  // ══════════════════════════════════════════
+  let mesActual = new Date().getMonth();
+  let añoActual = new Date().getFullYear();
+  let todosLosMovimientos = [];
+
+  const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  function actualizarHeaderMes() {
+    const label = `${MESES[mesActual]} ${añoActual}`;
+    document.getElementById("mes-label").textContent = label;
+    document.getElementById("mes-label-2").textContent = label;
+    document.getElementById("mes-header").textContent = label;
+  }
+
+  window.cambiarMes = function(dir) {
+    mesActual += dir;
+    if (mesActual < 0) { mesActual = 11; añoActual--; }
+    if (mesActual > 11) { mesActual = 0; añoActual++; }
+    actualizarHeaderMes();
+    renderDashboard();
+    renderMovimientos();
+  };
+
+  // ══════════════════════════════════════════
+  // ESCUCHA CAMBIOS EN TIEMPO REAL
+  // ══════════════════════════════════════════
+  const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
+  onSnapshot(q, (snapshot) => {
+    todosLosMovimientos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderDashboard();
+    renderMovimientos();
+  });
+
+  // ══════════════════════════════════════════
+  // FILTRAR POR MES
+  // ══════════════════════════════════════════
+  function movimientosMes() {
+    return todosLosMovimientos.filter(m => {
+      const f = new Date(m.fecha + "T12:00:00");
+      return f.getMonth() === mesActual && f.getFullYear() === añoActual;
+    });
+  }
+
+  // ══════════════════════════════════════════
+  // DASHBOARD
+  // ══════════════════════════════════════════
+  function renderDashboard() {
+    const movs = movimientosMes();
+    const gastos = movs.filter(m => m.tipo === "gasto");
+    const ingresos = movs.filter(m => m.tipo === "ingreso");
+
+    const totalGastos = gastos.reduce((s, m) => s + m.monto, 0);
+    const totalIngresos = ingresos.reduce((s, m) => s + m.monto, 0);
+    const totalPresupuesto = Object.values(window.PRESUPUESTO).reduce((s, v) => s + v, 0);
+    const disponible = totalIngresos - totalGastos;
+
+    document.getElementById("total-gastos").textContent = fmt(totalGastos);
+    document.getElementById("total-ingresos").textContent = fmt(totalIngresos);
+    document.getElementById("total-presupuesto").textContent = fmt(totalPresupuesto);
+    document.getElementById("total-disponible").textContent = fmt(disponible);
+    document.getElementById("total-disponible").className = "card-value " + (disponible >= 0 ? "green" : "red");
+
+    // Por subcategoría
+    const gastoPorSub = {};
+    gastos.forEach(m => {
+      gastoPorSub[m.subcategoria] = (gastoPorSub[m.subcategoria] || 0) + m.monto;
+    });
+
+    let html = "";
+    for (const cat in window.CATEGORIAS.gasto) {
+      html += `<div class="section-title">${cat}</div>`;
+      window.CATEGORIAS.gasto[cat].forEach(sub => {
+        const real = gastoPorSub[sub] || 0;
+        const ppto = window.PRESUPUESTO[sub] || 0;
+        const pct = ppto > 0 ? Math.min((real / ppto) * 100, 100) : 0;
+        const clase = pct < 75 ? "ok" : pct < 100 ? "warn" : "over";
+        html += `
+          <div class="category-row">
+            <div class="category-header">
+              <span class="category-name">${sub}</span>
+              <span class="category-amounts">${fmt(real)} / ${fmt(ppto)}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill ${clase}" style="width:${pct}%"></div>
+            </div>
+          </div>`;
+      });
+    }
+    document.getElementById("categorias-dashboard").innerHTML = html;
+  }
+
+  // ══════════════════════════════════════════
+  // LISTA DE MOVIMIENTOS
+  // ══════════════════════════════════════════
+  function renderMovimientos() {
+    const movs = movimientosMes();
+    if (movs.length === 0) {
+      document.getElementById("lista-movimientos").innerHTML =
+        `<div style="text-align:center;color:#aaa;padding:40px 0;font-size:14px;">Sin movimientos este mes</div>`;
+      return;
+    }
+    document.getElementById("lista-movimientos").innerHTML = movs.map(m => `
+      <div class="movimiento-item">
+        <div class="mov-left">
+          <div class="mov-sub">${m.subcategoria}</div>
+          <div class="mov-cat">${m.categoria} · ${m.quien}</div>
+          <div class="mov-fecha">${m.fecha}</div>
+          ${m.tipo === 'gasto' ? `<span class="${m.estado === 'pagado' ? 'pagado-badge' : 'pendiente-badge'}">${m.estado}</span>` : ''}
+          ${m.nota ? `<div class="mov-cat" style="margin-top:2px">📝 ${m.nota}</div>` : ''}
+        </div>
+        <div class="mov-monto ${m.tipo === 'ingreso' ? 'ingreso' : ''}">${m.tipo === 'ingreso' ? '+' : '-'}${fmt(m.monto)}</div>
+      </div>`).join("");
+  }
+
+  // ══════════════════════════════════════════
+  // REGISTRAR MOVIMIENTO
+  // ══════════════════════════════════════════
+  window.registrarMovimiento = async function() {
+    const tipo = document.getElementById("tipo-mov").value;
+    const categoria = document.getElementById("categoria-mov").value;
+    const subcategoria = document.getElementById("subcategoria-mov").value;
+    const monto = parseFloat(document.getElementById("monto-mov").value);
+    const fecha = document.getElementById("fecha-mov").value;
+    const quien = document.getElementById("quien-mov").value;
+    const estado = tipo === "gasto" ? document.getElementById("estado-mov").value : "n/a";
+    const nota = document.getElementById("nota-mov").value;
+
+    if (!monto || !fecha || !subcategoria) {
+      mostrarToast("Completa todos los campos obligatorios");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "movimientos"), {
+        tipo, categoria, subcategoria, monto, fecha, quien, estado, nota,
+        timestamp: new Date().toISOString()
+      });
+      document.getElementById("monto-mov").value = "";
+      document.getElementById("nota-mov").value = "";
+      mostrarToast(`✅ Registrado por ${quien}`);
+      showScreen("dashboard");
+    } catch (e) {
+      mostrarToast("Error al guardar. Intenta de nuevo.");
+    }
+  };
+
+  // ══════════════════════════════════════════
+  // UTILIDADES
+  // ══════════════════════════════════════════
+  function fmt(n) {
+    return "$" + Math.round(n).toLocaleString("es-CO");
+  }
+
+  function mostrarToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 3000);
+  }
+
+  // ══════════════════════════════════════════
+  // FORMULARIO DINÁMICO
+  // ══════════════════════════════════════════
+  window.actualizarCategorias = function() {
+    const tipo = document.getElementById("tipo-mov").value;
+    const cats = Object.keys(window.CATEGORIAS[tipo]);
+    document.getElementById("categoria-mov").innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join("");
+    document.getElementById("grupo-estado").style.display = tipo === "gasto" ? "block" : "none";
+    window.actualizarSubcategorias();
+  };
+
+  window.actualizarSubcategorias = function() {
+    const tipo = document.getElementById("tipo-mov").value;
+    const cat = document.getElementById("categoria-mov").value;
+    const subs = window.CATEGORIAS[tipo][cat] || [];
+    document.getElementById("subcategoria-mov").innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join("");
+  };
+
+  window.showScreen = function(name) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.getElementById("screen-" + name).classList.add("active");
+    const idx = ["dashboard","registrar","movimientos"].indexOf(name);
+    document.querySelectorAll(".tab")[idx].classList.add("active");
+  };
+
+  // Inicializar
+  actualizarHeaderMes();
+  actualizarCategorias();
+  const hoy = new Date().toISOString().split("T")[0];
+  document.getElementById("fecha-mov").value = hoy;
+</script>
+
+</body>
+</html>
