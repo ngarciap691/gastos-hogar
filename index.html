@@ -632,9 +632,7 @@ window.cambiarMes=function(dir){
 };
 function movsMes(m,a){ return todosMovs.filter(x=>{ const f=new Date(x.fecha+"T12:00:00"); return f.getMonth()===m&&f.getFullYear()===a; }); }
 
-// ── FIRESTORE ──
-const q=query(collection(db,"movimientos"),orderBy("fecha","desc"));
-onSnapshot(q,snap=>{ todosMovs=snap.docs.map(d=>({id:d.id,...d.data()})); renderDashboard(); renderHistorial(); renderPendientes(); });
+// ── FIRESTORE ── (listener se activa en INIT, después de cargar presupuesto)
 
 // ── DASHBOARD ──
 function renderDashboard(){
@@ -830,9 +828,21 @@ window.toast=function(msg){ const t=document.getElementById("toast"); t.textCont
 
 // ── INIT ──
 document.getElementById("mes-label").textContent=`${MESES[mesActual]} ${añoActual}`;
+
+// Mostrar skeleton mientras carga
+document.getElementById("hero-pct").textContent="...";
+document.getElementById("hero-gastado").textContent="...";
+document.getElementById("hero-ppto").textContent="...";
+document.getElementById("hero-disp").textContent="...";
+
+// Cargar presupuesto y fechas ANTES de activar el listener de movimientos
 await cargarPresupuesto();
 await cargarFechasVenc();
 renderSubList(TODAS_SUBS);
+
+// Solo DESPUÉS de tener presupuestos, activar el listener de Firestore
+const q=query(collection(db,"movimientos"),orderBy("fecha","desc"));
+onSnapshot(q,snap=>{ todosMovs=snap.docs.map(d=>({id:d.id,...d.data()})); renderDashboard(); renderHistorial(); renderPendientes(); });
 </script>
 </div>
 </body>
