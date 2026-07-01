@@ -663,7 +663,7 @@ function renderCuatroDonuts(gastoPorSub){
     const ppto=subs.reduce((s,sub)=>s+(PRESUPUESTO[sub]||0),0);
     const pct=ppto>0?Math.min((gastado/ppto)*100,100):0;
     const color=COLORES[cat];
-    const colorFill=pct<75?color:pct<95?"#D97706":"#DC2626";
+    const colorFill=pct<75?color:pct<95?"#D97706":pct<=100?color:"#DC2626";
     const dash=(pct/100)*circum;
     html+=`<div class="donut-item ${catAbierta===cat?'selected':''}" onclick="toggleDetalle('${cat}')">
       <svg width="70" height="70" viewBox="0 0 70 70">
@@ -702,7 +702,7 @@ function renderDetallePanel(cat,gastoPorSub){
   document.getElementById("cat-detail-subs").innerHTML=subs.map(sub=>{
     const r=gastoPorSub[sub]||0,p=PRESUPUESTO[sub]||0;
     const sp=p>0?Math.min((r/p)*100,100):0;
-    const sc=sp<75?"#16A34A":sp<95?"#D97706":"#DC2626";
+    const sc=sp<75?"#16A34A":sp<95?"#D97706":sp<=100?"#16A34A":"#DC2626";
     return `<div class="sub-row">
       <div class="sub-status" style="background:${sc}"></div>
       <div class="sub-name">${sub}</div>
@@ -746,7 +746,7 @@ window.guardarGasto=async function(){
   const subGuardada=subSel;
   try{
     await addDoc(collection(db,"movimientos"),{subcategoria:subSel,categoria:catEntry?.cat||"",monto,fecha:hoy,nota,timestamp:new Date().toISOString()});
-    const acumulado=movsMes(mesActual,añoActual).filter(m=>m.subcategoria===subGuardada).reduce((s,m)=>s+m.monto,0)+monto;
+    const acumulado=movsMes(mesActual,añoActual).filter(m=>m.subcategoria===subGuardada).reduce((s,m)=>s+m.monto,0);
     const ppto=PRESUPUESTO[subGuardada]||0;
     document.getElementById("search-sub").value=""; document.getElementById("monto-input").value="";
     document.getElementById("monto-display").textContent=""; document.getElementById("nota-input").value="";
