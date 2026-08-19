@@ -202,6 +202,28 @@
     /* TOAST */
     .toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--text); color:white; padding:11px 22px; border-radius:24px; font-size:13px; font-weight:500; z-index:300; opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
     .toast.show { opacity:1; }
+
+    /* PANEL DETALLE SUBCATEGORÍA */
+    .sub-detail-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:opacity .3s; }
+    .sub-detail-overlay.show { opacity:1; pointer-events:all; }
+    .sub-detail-sheet { background:var(--surface); border-radius:20px 20px 0 0; padding:20px 20px 40px; width:100%; max-height:75vh; overflow-y:auto; transform:translateY(100%); transition:transform .3s; }
+    .sub-detail-overlay.show .sub-detail-sheet { transform:translateY(0); }
+    .sub-detail-header { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+    .sub-detail-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .sub-detail-title { font-size:16px; font-weight:700; flex:1; }
+    .sub-detail-close { font-size:18px; color:var(--text3); cursor:pointer; background:none; border:none; }
+    .sub-detail-total { background:var(--surface2); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
+    .sub-detail-total-label { font-size:12px; color:var(--text2); }
+    .sub-detail-total-val { font-size:16px; font-weight:800; }
+    .sub-detail-item { display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--border); gap:10px; }
+    .sub-detail-item:last-child { border-bottom:none; }
+    .sub-detail-fecha { font-size:11px; color:var(--text3); min-width:70px; }
+    .sub-detail-nota { font-size:12px; color:var(--text2); flex:1; }
+    .sub-detail-monto { font-size:14px; font-weight:700; color:var(--red); }
+    .sub-detail-empty { text-align:center; padding:24px 0; color:var(--text3); font-size:13px; }
+    .sub-row-clickable { cursor:pointer; }
+    .sub-row-clickable:active { background:var(--surface2); margin:0 -16px; padding:11px 16px; }
+
     .empty { text-align:center; padding:40px 0; color:var(--text3); font-size:14px; }
     .empty-icon { font-size:36px; margin-bottom:8px; }
   </style>
@@ -357,6 +379,22 @@
   <div class="nav-item" onclick="showScreen('presupuesto')">
     <div class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
     <div class="nav-label">Presupuesto</div>
+  </div>
+</div>
+
+<!-- SUB DETALLE -->
+<div class="sub-detail-overlay" id="sub-detail-overlay">
+  <div class="sub-detail-sheet">
+    <div class="sub-detail-header">
+      <div class="sub-detail-dot" id="sub-detail-dot"></div>
+      <div class="sub-detail-title" id="sub-detail-title"></div>
+      <button class="sub-detail-close" onclick="cerrarSubDetalle()">✕</button>
+    </div>
+    <div class="sub-detail-total">
+      <div class="sub-detail-total-label">Total registrado este mes</div>
+      <div class="sub-detail-total-val" id="sub-detail-total"></div>
+    </div>
+    <div id="sub-detail-lista"></div>
   </div>
 </div>
 
@@ -701,12 +739,7 @@ function renderDetallePanel(cat,gastoPorSub){
     const r=gastoPorSub[sub]||0,p=PRESUPUESTO[sub]||0;
     const sp=p>0?Math.min((r/p)*100,100):0;
     const sc=sp<75?"#16A34A":sp<95?"#D97706":sp<=100?"#16A34A":"#DC2626";
-    return `<div class="sub-row">
-      <div class="sub-status" style="background:${sc}"></div>
-      <div class="sub-name">${sub}</div>
-      <div class="sub-bar-wrap"><div class="sub-bar"><div class="sub-bar-fill" style="width:${sp}%;background:${sc}"></div></div></div>
-      <div class="sub-amounts"><div class="sub-real" style="color:${sc}">${fmt(r)}</div><div class="sub-ppto">/ ${fmt(p)}</div></div>
-    </div>`;
+    return `<div class="sub-row sub-row-clickable" onclick="abrirSubDetalle('${sub}','${COLORES[cat]}')">\n      <div class="sub-status" style="background:${sc}"></div>\n      <div class="sub-name">${sub}</div>\n      <div class="sub-bar-wrap"><div class="sub-bar"><div class="sub-bar-fill" style="width:${sp}%;background:${sc}"></div></div></div>\n      <div class="sub-amounts"><div class="sub-real" style="color:${sc}">${fmt(r)}</div><div class="sub-ppto">/ ${fmt(p)}</div></div>\n      <div style="color:var(--text3);font-size:14px;margin-left:2px;">›</div>\n    </div>`;
   }).join("");
   document.getElementById("cat-detail-panel").classList.add("visible");
 }
@@ -810,6 +843,26 @@ window.eliminarGasto=async function(){
   if(!editId||!confirm("¿Eliminar este gasto?")) return;
   try{ await deleteDoc(doc(db,"movimientos",editId)); toast("🗑️ Gasto eliminado"); cerrarModal(); }
   catch(e){ toast("Error al eliminar"); }
+};
+
+// ── SUB DETALLE ──
+window.abrirSubDetalle=function(sub, color){
+  const movs=movsMes(mesActual,añoActual).filter(m=>m.subcategoria===sub);
+  const total=movs.reduce((s,m)=>s+m.monto,0);
+  document.getElementById("sub-detail-dot").style.background=color;
+  document.getElementById("sub-detail-title").textContent=sub;
+  document.getElementById("sub-detail-total").textContent=fmt(total);
+  document.getElementById("sub-detail-lista").innerHTML=movs.length===0
+    ?`<div class="sub-detail-empty">Sin gastos registrados este mes</div>`
+    :movs.map(m=>`<div class="sub-detail-item">
+        <div class="sub-detail-fecha">${m.fecha}</div>
+        <div class="sub-detail-nota">${m.nota||'—'}</div>
+        <div class="sub-detail-monto">-${fmt(m.monto)}</div>
+      </div>`).join("");
+  document.getElementById("sub-detail-overlay").classList.add("show");
+};
+window.cerrarSubDetalle=function(){
+  document.getElementById("sub-detail-overlay").classList.remove("show");
 };
 
 // ── NAVEGACIÓN ──
