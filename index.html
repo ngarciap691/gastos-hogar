@@ -226,6 +226,54 @@
 
     .empty { text-align:center; padding:40px 0; color:var(--text3); font-size:14px; }
     .empty-icon { font-size:36px; margin-bottom:8px; }
+
+    /* ── MÉTODOS DE PAGO ── */
+    /* Pills en Registrar */
+    .metodo-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:0; }
+    .metodo-pill {
+      background:var(--surface); border:1.5px solid var(--border);
+      border-radius:10px; padding:10px 12px; cursor:pointer;
+      display:flex; flex-direction:column; gap:2px; transition:all .15s;
+    }
+    .metodo-pill.active-tc  { background:#F5F3FF; border-color:#7C3AED; }
+    .metodo-pill.active-ca  { background:#ECFEFF; border-color:#0891B2; }
+    .metodo-pill.active-sx  { background:#FFFBEB; border-color:#D97706; }
+    .metodo-pill.active-otro{ background:#F9FAFB; border-color:var(--text2); }
+    .metodo-pill-top { display:flex; align-items:center; gap:6px; }
+    .metodo-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .metodo-dot.tc  { background:#7C3AED; }
+    .metodo-dot.ca  { background:#0891B2; }
+    .metodo-dot.sx  { background:#D97706; }
+    .metodo-dot.otro{ background:#6B7280; }
+    .metodo-name { font-size:12px; font-weight:700; color:var(--text); }
+    .metodo-pill.active-tc  .metodo-name { color:#7C3AED; }
+    .metodo-pill.active-ca  .metodo-name { color:#0891B2; }
+    .metodo-pill.active-sx  .metodo-name { color:#D97706; }
+    .metodo-pill.active-otro .metodo-name { color:var(--text2); }
+    .metodo-balance { font-size:11px; font-weight:700; color:var(--text2); padding-left:14px; font-variant-numeric:tabular-nums; }
+    .metodo-balance.warn { color:#D97706; }
+    .metodo-balance.over { color:#DC2626; }
+    .metodo-balance-label { font-size:9px; color:var(--text3); padding-left:14px; }
+    .metodo-balance-label.warn { color:#D97706; }
+    .metodo-balance-label.done { color:#16A34A; }
+
+    /* Banner de métodos en Dashboard */
+    .metodos-banner { background:var(--surface); border-radius:var(--radius); padding:16px; margin-bottom:16px; }
+    .metodos-banner-title { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.7px; margin-bottom:12px; }
+    .metodo-bar-row { display:grid; grid-template-columns:88px 1fr 64px; align-items:center; gap:8px; margin-bottom:10px; }
+    .metodo-bar-row:last-child { margin-bottom:0; }
+    .metodo-bar-name { font-size:12px; font-weight:600; color:var(--text); display:flex; align-items:center; gap:5px; }
+    .metodo-bar-badge { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .metodo-bar-track { height:7px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+    .metodo-bar-fill { height:100%; border-radius:4px; }
+    .metodo-bar-nums { display:flex; justify-content:space-between; margin-top:2px; }
+    .metodo-bar-gastado { font-size:9px; color:var(--text3); font-variant-numeric:tabular-nums; }
+    .metodo-bar-right { text-align:right; }
+    .metodo-bar-disp { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .metodo-bar-disp-label { font-size:9px; color:var(--text3); }
+
+    /* Bloque métodos en Presupuesto */
+    .ppto-metodo-section { margin-top:16px; }
   </style>
 </head>
 <body>
@@ -279,6 +327,7 @@
     </div>
     <div class="donuts-row" id="donuts-row"></div>
   </div>
+  <div class="metodos-banner" id="metodos-banner" style="display:none"></div>
   <div class="cat-detail-panel" id="cat-detail-panel">
     <div class="cat-detail-header">
       <div class="cat-detail-dot" id="cat-detail-dot"></div>
@@ -303,6 +352,10 @@
     <div class="monto-prefix">Pesos colombianos</div>
     <input class="monto-input" id="monto-input" type="number" placeholder="0" inputmode="numeric" oninput="actualizarDisplayMonto()" />
     <div class="monto-display" id="monto-display"></div>
+  </div>
+  <div class="field-wrap" id="metodo-wrap" style="display:none">
+    <div class="field-label">Método de pago</div>
+    <div class="metodo-grid" id="metodo-grid"></div>
   </div>
   <div class="field-wrap" id="nota-wrap" style="display:none">
     <div class="field-label">Nota (opcional)</div>
@@ -414,6 +467,12 @@
     <div class="modal-title">Editar gasto</div>
     <div class="modal-field"><div class="modal-label">Subcategoría</div><select class="modal-select" id="edit-sub"></select></div>
     <div class="modal-field"><div class="modal-label">Monto</div><input class="modal-input" id="edit-monto" type="number" /></div>
+    <div class="modal-field"><div class="modal-label">Método de pago</div><select class="modal-select" id="edit-metodo">
+      <option value="tc">T. Crédito</option>
+      <option value="ca">Cta. Ahorros</option>
+      <option value="sx">Sodexo</option>
+      <option value="otro">Otro</option>
+    </select></div>
     <div class="modal-field"><div class="modal-label">Nota</div><input class="modal-input" id="edit-nota" type="text" /></div>
     <div class="modal-btns">
       <button class="modal-btn-cancel" onclick="cerrarModal()">Cancelar</button>
@@ -494,8 +553,17 @@ const CAT_SHORT = { "Gastos Hogar":"Hogar","Mercado":"Mercado","Gastos Personale
 const TODAS_SUBS = Object.entries(CATEGORIAS).flatMap(([cat,subs])=>subs.map(s=>({sub:s,cat})));
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
+// ── MÉTODOS DE PAGO ──
+const METODOS = [
+  { id:"tc",   label:"T. Crédito",  color:"#7C3AED", cls:"tc"   },
+  { id:"ca",   label:"Cta. Ahorros",color:"#0891B2", cls:"ca"   },
+  { id:"sx",   label:"Sodexo",      color:"#D97706", cls:"sx"   },
+  { id:"otro", label:"Otro",        color:"#6B7280", cls:"otro" }
+];
+let PPTO_METODOS = {}; // presupuesto por método { tc:2000000, ca:1500000, sx:400000 }
+
 let mesActual=new Date().getMonth(), añoActual=new Date().getFullYear();
-let todosMovs=[], PRESUPUESTO={}, FECHAS_VENC={}, subSel=null, editId=null, catAbierta=null;
+let todosMovs=[], PRESUPUESTO={}, FECHAS_VENC={}, subSel=null, editId=null, catAbierta=null, metodoPagoSel="tc";
 
 // ── FORMATO NÚMEROS ──
 function fmt(n){ return "$"+Math.round(n||0).toLocaleString("es-CO"); }
@@ -506,6 +574,7 @@ function fmtInput(n){ return Math.round(n||0).toLocaleString("es-CO"); }
 async function cargarPresupuesto(){
   try{ const s=await getDoc(doc(db,"config","presupuesto")); PRESUPUESTO=s.exists()?s.data():{}; }catch(e){}
   TODAS_SUBS.forEach(({sub})=>{ if(!(sub in PRESUPUESTO)) PRESUPUESTO[sub]=0; });
+  try{ const s=await getDoc(doc(db,"config","ppto_metodos")); PPTO_METODOS=s.exists()?s.data():{}; }catch(e){}
   renderPresupuestoForm();
 }
 
@@ -514,8 +583,16 @@ window.guardarPresupuesto=async function(){
     const raw=inp.value.replace(/\./g,"").replace(/,/g,"");
     PRESUPUESTO[inp.dataset.sub]=parseFloat(raw)||0;
   });
-  try{ await setDoc(doc(db,"config","presupuesto"),PRESUPUESTO); toast("✅ Presupuestos guardados"); renderDashboard(); }
-  catch(e){ toast("Error al guardar"); }
+  document.querySelectorAll(".ppto-metodo-input").forEach(inp=>{
+    const raw=inp.value.replace(/\./g,"").replace(/,/g,"");
+    PPTO_METODOS[inp.dataset.metodo]=parseFloat(raw)||0;
+  });
+  try{
+    await setDoc(doc(db,"config","presupuesto"),PRESUPUESTO);
+    await setDoc(doc(db,"config","ppto_metodos"),PPTO_METODOS);
+    toast("✅ Presupuestos guardados");
+    renderDashboard();
+  }catch(e){ toast("Error al guardar"); }
 };
 
 function renderPresupuestoForm(){
@@ -538,14 +615,42 @@ function renderPresupuestoForm(){
       </div>`;
     });
   }
+  // Bloque de métodos de pago
+  html+=`<div class="ppto-metodo-section">
+    <div class="ppto-cat-title">Métodos de pago</div>`;
+  METODOS.filter(m=>m.id!=="otro").forEach(m=>{
+    const val=PPTO_METODOS[m.id]||0;
+    html+=`<div class="ppto-row">
+      <div class="ppto-name" style="display:flex;align-items:center;gap:7px;">
+        <span style="width:10px;height:10px;border-radius:3px;background:${m.color};display:inline-block;flex-shrink:0;"></span>
+        ${m.label}
+      </div>
+      <div class="ppto-input-wrap">
+        <input class="ppto-input ppto-metodo-input" data-metodo="${m.id}" type="text" inputmode="numeric"
+          value="${val>0?fmtInput(val):''}"
+          placeholder="0"
+          onfocus="this.value=this.value.replace(/\\./g,'')"
+          onblur="formatPptoInput(this)"
+          oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+        <div class="ppto-display" id="disp-metodo-${m.id}">${val>0?fmt(val):''}</div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+
   document.getElementById("ppto-form").innerHTML=html;
 }
 
 window.formatPptoInput=function(inp){
   const raw=parseFloat(inp.value)||0;
   inp.value=raw>0?fmtInput(raw):"";
-  const key=inp.dataset.sub.replace(/[^a-zA-Z0-9]/g,"_");
-  const disp=document.getElementById("disp-"+key);
+  let disp=null;
+  if(inp.dataset.sub){
+    const key=inp.dataset.sub.replace(/[^a-zA-Z0-9]/g,"_");
+    disp=document.getElementById("disp-"+key);
+  } else if(inp.dataset.metodo){
+    disp=document.getElementById("disp-metodo-"+inp.dataset.metodo);
+  }
   if(disp) disp.textContent=raw>0?fmt(raw):"";
 };
 
@@ -687,6 +792,7 @@ function renderDashboard(){
   document.getElementById("hero-disp").textContent=fmt(Math.abs(disponible));
   document.getElementById("hero-disp").className=`hero-stat-value ${disponible>=0?'g':'r'}`;
   renderCuatroDonuts(gastoPorSub);
+  renderMetodosBanner();
   if(catAbierta) renderDetallePanel(catAbierta,gastoPorSub);
 }
 
@@ -744,6 +850,92 @@ function renderDetallePanel(cat,gastoPorSub){
   document.getElementById("cat-detail-panel").classList.add("visible");
 }
 
+// ── MÉTODOS DE PAGO — helpers ──
+function gastoPorMetodo(mes, año){
+  const movs=movsMes(mes,año);
+  const res={};
+  METODOS.forEach(m=>res[m.id]=0);
+  movs.forEach(m=>{ const id=m.metodoPago||"otro"; if(res[id]!==undefined) res[id]+=m.monto; else res["otro"]+=m.monto; });
+  return res;
+}
+
+function renderMetodoPills(){
+  const gastos=gastoPorMetodo(mesActual,añoActual);
+  let html="";
+  METODOS.forEach(m=>{
+    const ppto=PPTO_METODOS[m.id]||0;
+    const gastado=gastos[m.id]||0;
+    const disp=ppto-gastado;
+    const pct=ppto>0?(gastado/ppto)*100:0;
+    const isActive=metodoPagoSel===m.id;
+    const activeCls=isActive?`active-${m.cls}`:"";
+    let balanceHtml="";
+    if(m.id==="otro"){
+      balanceHtml=`<div class="metodo-balance" style="color:var(--text3);font-size:9px;font-variant-numeric:normal;">Sin límite</div><div class="metodo-balance-label">&nbsp;</div>`;
+    } else if(ppto===0){
+      balanceHtml=`<div class="metodo-balance" style="color:var(--text3);font-size:9px;font-variant-numeric:normal;">Sin presupuesto</div><div class="metodo-balance-label">&nbsp;</div>`;
+    } else {
+      const exceso=gastado>ppto;
+      const exacto100=Math.round(pct)===100&&!exceso;
+      const warnCls=exceso?"over":pct>=85?"warn":"";
+      const labelTxt=exceso?"⚠ sin saldo":exacto100?"✓ cumplido":pct>=85?"⚠ poco saldo":"disponible";
+      balanceHtml=`<div class="metodo-balance ${warnCls}">${fmtK(Math.max(disp,0))}</div><div class="metodo-balance-label ${exacto100?"done":pct>=85&&!exacto100?"warn":""}">${labelTxt}</div>`;
+    }
+    html+=`<div class="metodo-pill ${activeCls}" onclick="seleccionarMetodo('${m.id}')">
+      <div class="metodo-pill-top">
+        <div class="metodo-dot ${m.cls}"></div>
+        <div class="metodo-name">${m.label}</div>
+      </div>
+      ${balanceHtml}
+    </div>`;
+  });
+  const grid=document.getElementById("metodo-grid");
+  if(grid) grid.innerHTML=html;
+}
+
+window.seleccionarMetodo=function(id){
+  metodoPagoSel=id;
+  renderMetodoPills();
+};
+
+function renderMetodosBanner(){
+  const gastos=gastoPorMetodo(mesActual,añoActual);
+  const metodosBanner=METODOS.filter(m=>m.id!=="otro");
+  const hayPpto=metodosBanner.some(m=>(PPTO_METODOS[m.id]||0)>0);
+  const banner=document.getElementById("metodos-banner");
+  if(!banner) return;
+  if(!hayPpto){ banner.style.display="none"; return; }
+  banner.style.display="block";
+  let html=`<div class="metodos-banner-title">Métodos de pago · ${MESES[mesActual]}</div>`;
+  metodosBanner.forEach(m=>{
+    const ppto=PPTO_METODOS[m.id]||0;
+    if(!ppto) return;
+    const gastado=gastos[m.id]||0;
+    const disp=Math.max(ppto-gastado,0);
+    const pct=Math.min((gastado/ppto)*100,100);
+    const fillColor=pct>=100?"#DC2626":pct>=85?"#D97706":m.color;
+    const dispColor=pct>=100?"#DC2626":pct>=85?"#D97706":m.color;
+    html+=`<div class="metodo-bar-row">
+      <div class="metodo-bar-name">
+        <div class="metodo-bar-badge" style="background:${m.color};"></div>
+        ${m.label}
+      </div>
+      <div>
+        <div class="metodo-bar-track"><div class="metodo-bar-fill" style="width:${pct}%;background:${fillColor};"></div></div>
+        <div class="metodo-bar-nums">
+          <span class="metodo-bar-gastado">${fmtK(gastado)}</span>
+          <span class="metodo-bar-gastado">de ${fmtK(ppto)}</span>
+        </div>
+      </div>
+      <div class="metodo-bar-right">
+        <div class="metodo-bar-disp" style="color:${dispColor};">${fmtK(disp)}</div>
+        <div class="metodo-bar-disp-label">disponible</div>
+      </div>
+    </div>`;
+  });
+  banner.innerHTML=html;
+}
+
 // ── REGISTRAR ──
 window.actualizarDisplayMonto=function(){
   const v=parseFloat(document.getElementById("monto-input").value)||0;
@@ -763,9 +955,11 @@ window.seleccionarSub=function(sub){
   document.getElementById("search-sub").value=sub;
   document.getElementById("sub-list").innerHTML="";
   document.getElementById("monto-wrap").style.display="block";
+  document.getElementById("metodo-wrap").style.display="block";
   document.getElementById("nota-wrap").style.display="block";
   document.getElementById("btn-guardar").style.display="block";
   document.getElementById("btn-guardar").disabled=false;
+  renderMetodoPills();
   document.getElementById("monto-input").focus();
 };
 window.guardarGasto=async function(){
@@ -775,18 +969,23 @@ window.guardarGasto=async function(){
   const catEntry=TODAS_SUBS.find(x=>x.sub===subSel);
   const hoy=new Date().toISOString().split("T")[0];
   const subGuardada=subSel;
+  const metodoGuardado=metodoPagoSel||"otro";
   try{
-    await addDoc(collection(db,"movimientos"),{subcategoria:subSel,categoria:catEntry?.cat||"",monto,fecha:hoy,nota,timestamp:new Date().toISOString()});
+    await addDoc(collection(db,"movimientos"),{subcategoria:subSel,categoria:catEntry?.cat||"",monto,fecha:hoy,nota,metodoPago:metodoGuardado,timestamp:new Date().toISOString()});
     const acumulado=movsMes(mesActual,añoActual).filter(m=>m.subcategoria===subGuardada).reduce((s,m)=>s+m.monto,0);
     const ppto=PRESUPUESTO[subGuardada]||0;
     document.getElementById("search-sub").value=""; document.getElementById("monto-input").value="";
     document.getElementById("monto-display").textContent=""; document.getElementById("nota-input").value="";
-    document.getElementById("monto-wrap").style.display="none"; document.getElementById("nota-wrap").style.display="none";
-    document.getElementById("btn-guardar").style.display="none"; subSel=null; renderSubList(TODAS_SUBS);
+    document.getElementById("monto-wrap").style.display="none";
+    document.getElementById("metodo-wrap").style.display="none";
+    document.getElementById("nota-wrap").style.display="none";
+    document.getElementById("btn-guardar").style.display="none";
+    subSel=null; metodoPagoSel="tc"; renderSubList(TODAS_SUBS);
     if(ppto>0&&(acumulado/ppto)*100>=95){
       const pctN=Math.round((acumulado/ppto)*100),disp=ppto-acumulado;
-      document.getElementById("alerta-title").textContent=pctN>=100?"Presupuesto superado":"Presupuesto al límite";
-      document.getElementById("alerta-msg").innerHTML=`<strong>${subGuardada}</strong><br><br>Con este gasto llevas <strong>${fmt(acumulado)}</strong> de un presupuesto de <strong>${fmt(ppto)}</strong> (${pctN}%).<br><br>${disp>0?`Te quedan <strong>${fmt(disp)}</strong> disponibles.`:`Superaste el presupuesto por <strong>${fmt(Math.abs(disp))}</strong>.`}`;
+      const exacto=pctN===100&&acumulado<=ppto;
+      document.getElementById("alerta-title").textContent=exacto?"✅ Presupuesto cumplido":pctN>100?"Presupuesto superado":"Presupuesto al límite";
+      document.getElementById("alerta-msg").innerHTML=`<strong>${subGuardada}</strong><br><br>Con este gasto llevas <strong>${fmt(acumulado)}</strong> de un presupuesto de <strong>${fmt(ppto)}</strong> (${pctN}%).<br><br>${exacto?`Usaste exactamente el presupuesto. Nada más, nada menos.`:disp>0?`Te quedan <strong>${fmt(disp)}</strong> disponibles.`:`Superaste el presupuesto por <strong>${fmt(Math.abs(disp))}</strong>.`}`;
       document.getElementById("alerta-overlay").classList.add("show"); showScreen("dashboard"); return;
     }
     toast("✅ Gasto registrado"); showScreen("dashboard");
@@ -829,14 +1028,16 @@ window.abrirEditar=function(id){
   document.getElementById("edit-monto").value=mov.monto;
   document.getElementById("edit-nota").value=mov.nota||"";
   document.getElementById("edit-sub").innerHTML=TODAS_SUBS.map(({sub})=>`<option value="${sub}" ${sub===mov.subcategoria?'selected':''}>${sub}</option>`).join("");
+  document.getElementById("edit-metodo").value=mov.metodoPago||"otro";
   document.getElementById("modal-overlay").classList.add("show");
 };
 window.cerrarModal=function(){document.getElementById("modal-overlay").classList.remove("show");editId=null;};
 window.guardarEdicion=async function(){
   if(!editId) return;
   const sub=document.getElementById("edit-sub").value,monto=parseFloat(document.getElementById("edit-monto").value),nota=document.getElementById("edit-nota").value;
+  const metodo=document.getElementById("edit-metodo").value;
   const cat=TODAS_SUBS.find(x=>x.sub===sub)?.cat||"";
-  try{ await updateDoc(doc(db,"movimientos",editId),{subcategoria:sub,categoria:cat,monto,nota}); toast("✅ Gasto actualizado"); cerrarModal(); }
+  try{ await updateDoc(doc(db,"movimientos",editId),{subcategoria:sub,categoria:cat,monto,nota,metodoPago:metodo}); toast("✅ Gasto actualizado"); cerrarModal(); }
   catch(e){ toast("Error al actualizar"); }
 };
 window.eliminarGasto=async function(){
