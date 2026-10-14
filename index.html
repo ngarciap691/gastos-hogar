@@ -274,6 +274,37 @@
 
     /* Bloque métodos en Presupuesto */
     .ppto-metodo-section { margin-top:16px; }
+
+    /* ── DETALLE POR MÉTODO (toca una barra) ── */
+    .metodos-banner-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .metodos-banner-header .metodos-banner-title { margin-bottom:0; }
+    .metodo-bar-row { cursor:pointer; padding:8px; margin:0 -8px 2px; border-radius:12px; transition:background .15s; }
+    .metodo-bar-row:last-child { margin-bottom:0; }
+    .metodo-bar-row:active { background:var(--surface2); }
+    .metodo-bar-row.selected { background:var(--surface2); }
+    .mp-sub-header { padding:8px 16px; font-size:11px; color:var(--text3); border-bottom:1px solid var(--border); }
+    .mp-item { border-bottom:1px solid var(--border); }
+    .mp-item:last-child { border-bottom:none; }
+    .mp-item.editing { background:var(--bg); }
+    .mp-row { display:flex; align-items:center; gap:10px; padding:11px 16px; cursor:pointer; }
+    .mp-row:active { background:var(--surface2); }
+    .mp-fecha { font-size:11px; color:var(--text3); min-width:44px; }
+    .mp-info { flex:1; min-width:0; }
+    .mp-sub { font-size:13px; font-weight:600; }
+    .mp-meta { font-size:11px; color:var(--text3); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .mp-monto { font-size:13px; font-weight:700; color:var(--red); font-variant-numeric:tabular-nums; }
+    .mp-mover { padding:0 16px 12px; }
+    .mp-mover-label { font-size:11px; font-weight:600; color:var(--text2); margin-bottom:6px; }
+    .mp-mover-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+    .mp-chip { padding:10px 4px; border-radius:8px; font-size:12px; font-weight:700; background:var(--surface); border:1.5px solid; cursor:pointer; }
+    .mp-mas { width:100%; padding:13px; background:none; border:none; border-top:1px solid var(--border); font-size:13px; font-weight:600; color:var(--accent); cursor:pointer; }
+    .mp-empty { text-align:center; padding:20px 0; color:var(--text3); font-size:13px; }
+
+    /* Aviso con Deshacer */
+    .toast-undo { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--text); color:white; padding:6px 6px 6px 18px; border-radius:24px; font-size:13px; font-weight:500; z-index:300; display:none; align-items:center; gap:12px; white-space:nowrap; max-width:92vw; }
+    .toast-undo.show { display:flex; }
+    .toast-undo span { overflow:hidden; text-overflow:ellipsis; }
+    .toast-undo button { background:white; color:var(--text); border:none; border-radius:18px; padding:9px 14px; font-size:12px; font-weight:800; cursor:pointer; flex-shrink:0; }
   </style>
 </head>
 <body>
@@ -328,6 +359,7 @@
     <div class="donuts-row" id="donuts-row"></div>
   </div>
   <div class="metodos-banner" id="metodos-banner" style="display:none"></div>
+  <div class="cat-detail-panel" id="metodo-detail-panel"></div>
   <div class="cat-detail-panel" id="cat-detail-panel">
     <div class="cat-detail-header">
       <div class="cat-detail-dot" id="cat-detail-dot"></div>
@@ -483,6 +515,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="toast-undo" id="toast-undo" role="status"><span id="toast-undo-msg"></span><button onclick="deshacerCambioMetodo()">Deshacer</button></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -543,7 +576,7 @@ onAuthStateChanged(auth, usuario => {
 });
 
 const CATEGORIAS = {
-  "Gastos Hogar":      ["Arriendo","Administración","Internet - ETB","Luz - Enel","Agua","Gas - Vanti","Celular Nicolás","Celular Daniela","Pago Directo Empleada","Salud-Pensión-ARL-CC Empleada","Prestaciones Sociales Empleada","Symplifica","Colegio Nola","Comida Nola"],
+  "Gastos Hogar":      ["Arriendo","Administración","Internet - ETB","Luz - Enel","Agua","Gas - Vanti","Celular Nicolás","Celular Daniela","Pago Directo Empleada","Salud-Pensión-ARL-CC Empleada","Prestaciones Sociales Empleada","Symplifica","Colegio Nola","Comida Nola","Gasolina"],
   "Mercado":           ["Carnes","Verduras","Otros Mercado"],
   "Gastos Personales": ["Gastos Nicolás","Gastos Daniela","Salidas a Comer"],
   "Otros Gastos":      ["Gimnasio Daniela","Arriendo Julián","Otros"]
@@ -564,6 +597,9 @@ let PPTO_METODOS = {}; // presupuesto por método { tc:2000000, ca:1500000, sx:4
 
 let mesActual=new Date().getMonth(), añoActual=new Date().getFullYear();
 let todosMovs=[], PRESUPUESTO={}, FECHAS_VENC={}, subSel=null, editId=null, catAbierta=null, metodoPagoSel="tc";
+// Detalle por método en Inicio
+let metodoAbierto=null, metodoVerTodos=false, movMoviendo=null, ultimoCambioMetodo=null, undoTimer=null;
+const LIMITE_LISTA_METODO=8;
 
 // ── FORMATO NÚMEROS ──
 function fmt(n){ return "$"+Math.round(n||0).toLocaleString("es-CO"); }
@@ -770,6 +806,7 @@ function renderPendientes(){
 window.cambiarMes=function(dir){
   mesActual+=dir;
   if(mesActual<0){mesActual=11;añoActual--;} if(mesActual>11){mesActual=0;añoActual++;}
+  movMoviendo=null; metodoVerTodos=false;
   document.getElementById("mes-label").textContent=`${MESES[mesActual]} ${añoActual}`;
   cerrarDetalle(); renderDashboard(); renderHistorial(); renderPendientes();
 };
@@ -823,6 +860,7 @@ function renderCuatroDonuts(gastoPorSub){
 
 window.toggleDetalle=function(cat){
   if(catAbierta===cat){cerrarDetalle();return;}
+  if(metodoAbierto) cerrarMetodo();
   catAbierta=cat;
   const movs=movsMes(mesActual,añoActual),gastoPorSub={};
   movs.forEach(m=>{gastoPorSub[m.subcategoria]=(gastoPorSub[m.subcategoria]||0)+m.monto;});
@@ -904,9 +942,10 @@ function renderMetodosBanner(){
   const hayPpto=metodosBanner.some(m=>(PPTO_METODOS[m.id]||0)>0);
   const banner=document.getElementById("metodos-banner");
   if(!banner) return;
-  if(!hayPpto){ banner.style.display="none"; return; }
+  if(metodoAbierto && !(PPTO_METODOS[metodoAbierto]>0)){ metodoAbierto=null; movMoviendo=null; }
+  if(!hayPpto){ banner.style.display="none"; renderMetodoDetalle(); return; }
   banner.style.display="block";
-  let html=`<div class="metodos-banner-title">Métodos de pago · ${MESES[mesActual]}</div>`;
+  let html=`<div class="metodos-banner-header"><div class="metodos-banner-title">Métodos de pago · ${MESES[mesActual]}</div><div class="donuts-card-sub">Toca para ver detalle</div></div>`;
   metodosBanner.forEach(m=>{
     const ppto=PPTO_METODOS[m.id]||0;
     if(!ppto) return;
@@ -915,7 +954,7 @@ function renderMetodosBanner(){
     const pct=Math.min((gastado/ppto)*100,100);
     const fillColor=pct>=100?"#DC2626":pct>=85?"#D97706":m.color;
     const dispColor=pct>=100?"#DC2626":pct>=85?"#D97706":m.color;
-    html+=`<div class="metodo-bar-row">
+    html+=`<div class="metodo-bar-row ${metodoAbierto===m.id?'selected':''}" onclick="toggleMetodo('${m.id}')">
       <div class="metodo-bar-name">
         <div class="metodo-bar-badge" style="background:${m.color};"></div>
         ${m.label}
@@ -934,7 +973,101 @@ function renderMetodosBanner(){
     </div>`;
   });
   banner.innerHTML=html;
+  renderMetodoDetalle();
 }
+
+// ── DETALLE POR MÉTODO: toca una barra y se despliega la lista ──
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function labelMetodo(id){ return (METODOS.find(x=>x.id===id)||{label:"Otro"}).label; }
+function fechaCorta(f){ const d=parseInt(f.slice(8,10),10), m=parseInt(f.slice(5,7),10)-1; return `${d} ${(MESES[m]||"").substring(0,3).toLowerCase()}`; }
+
+window.toggleMetodo=function(id){
+  if(metodoAbierto===id){ cerrarMetodo(); return; }
+  if(catAbierta) cerrarDetalle();
+  metodoAbierto=id; metodoVerTodos=false; movMoviendo=null;
+  renderMetodosBanner();
+};
+window.cerrarMetodo=function(){
+  metodoAbierto=null; metodoVerTodos=false; movMoviendo=null;
+  renderMetodosBanner();
+};
+window.verTodosMetodo=function(){ metodoVerTodos=!metodoVerTodos; movMoviendo=null; renderMetodoDetalle(); };
+window.toggleMoverMov=function(id){ movMoviendo=(movMoviendo===id)?null:id; renderMetodoDetalle(); };
+
+function renderMetodoDetalle(){
+  const panel=document.getElementById("metodo-detail-panel");
+  if(!panel) return;
+  const m=METODOS.find(x=>x.id===metodoAbierto);
+  if(!m){ panel.classList.remove("visible"); panel.innerHTML=""; return; }
+  const ppto=PPTO_METODOS[m.id]||0;
+  const movs=movsMes(mesActual,añoActual)
+    .filter(x=>(x.metodoPago||"otro")===m.id)
+    .sort((a,b)=>b.fecha.localeCompare(a.fecha)||(b.timestamp||"").localeCompare(a.timestamp||""));
+  const total=movs.reduce((s,x)=>s+x.monto,0);
+  const visibles=metodoVerTodos?movs:movs.slice(0,LIMITE_LISTA_METODO);
+  const resto=movs.length-LIMITE_LISTA_METODO;
+  let html=`<div class="cat-detail-header">
+      <div class="cat-detail-dot" style="background:${m.color}"></div>
+      <div class="cat-detail-title">${m.label}</div>
+      <div class="cat-detail-totals">${fmt(total)} / ${fmt(ppto)}</div>
+      <button class="cat-detail-close" onclick="cerrarMetodo()">✕</button>
+    </div>`;
+  if(movs.length===0){
+    html+=`<div class="mp-empty">Sin gastos con ${m.label} este mes</div>`;
+  } else {
+    html+=`<div class="mp-sub-header">${movs.length} gasto${movs.length===1?'':'s'} · toca uno para cambiar su método</div>`;
+    html+=visibles.map(x=>{
+      const editando=movMoviendo===x.id;
+      const meta=x.nota?esc(x.nota):esc(x.categoria||"");
+      let mover="";
+      if(editando){
+        mover=`<div class="mp-mover"><div class="mp-mover-label">Mover a:</div><div class="mp-mover-grid">`+
+          METODOS.filter(o=>o.id!==m.id).map(o=>`<button class="mp-chip" style="color:${o.color};border-color:${o.color};" onclick="moverMovMetodo('${x.id}','${o.id}')">${o.label}</button>`).join("")+
+          `</div></div>`;
+      }
+      return `<div class="mp-item ${editando?'editing':''}">
+        <div class="mp-row" onclick="toggleMoverMov('${x.id}')">
+          <div class="mp-fecha">${fechaCorta(x.fecha)}</div>
+          <div class="mp-info"><div class="mp-sub">${esc(x.subcategoria)}</div><div class="mp-meta">${meta}</div></div>
+          <div class="mp-monto">-${fmt(x.monto)}</div>
+        </div>${mover}
+      </div>`;
+    }).join("");
+    if(resto>0){
+      html+=`<button class="mp-mas" onclick="verTodosMetodo()">${metodoVerTodos?'Mostrar menos':(resto===1?'Mostrar el gasto restante':`Mostrar los ${resto} restantes`)}</button>`;
+    }
+  }
+  panel.innerHTML=html;
+  panel.classList.add("visible");
+}
+
+window.moverMovMetodo=async function(id,nuevo){
+  const mov=todosMovs.find(x=>x.id===id); if(!mov) return;
+  const anterior=mov.metodoPago||"otro";
+  movMoviendo=null;
+  try{
+    await updateDoc(doc(db,"movimientos",id),{metodoPago:nuevo});
+    ultimoCambioMetodo={id,anterior};
+    mostrarUndo(`${mov.subcategoria} → ${labelMetodo(nuevo)}`);
+  }catch(e){ toast("Error al actualizar"); renderMetodoDetalle(); }
+};
+
+function mostrarUndo(msg){
+  const t=document.getElementById("toast-undo");
+  document.getElementById("toast-undo-msg").textContent=msg;
+  t.classList.add("show");
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(()=>{ t.classList.remove("show"); ultimoCambioMetodo=null; },6000);
+}
+
+window.deshacerCambioMetodo=async function(){
+  clearTimeout(undoTimer);
+  document.getElementById("toast-undo").classList.remove("show");
+  const c=ultimoCambioMetodo; ultimoCambioMetodo=null;
+  if(!c) return;
+  try{ await updateDoc(doc(db,"movimientos",c.id),{metodoPago:c.anterior}); toast("↩️ Cambio deshecho"); }
+  catch(e){ toast("Error al deshacer"); }
+};
 
 // ── REGISTRAR ──
 window.actualizarDisplayMonto=function(){
